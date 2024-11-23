@@ -24,9 +24,27 @@ map_prompt = PromptTemplate(
     input_variables=["text"]
 )
 
-# # Initialize LangChain components with ChatOpenAI
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
-summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
+llm = ChatOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    model="gpt-4o-mini", 
+    temperature=0
+)  # Use ChatOpenAI for chat models
+
+# summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
+
+
+async def format_text(text: str) -> str:
+    try:
+        response = llm.invoke(
+            f"""Format this content so it is easier to read in plain text:
+            {text}
+            
+            DO NOT CHANGE THE CONTENT OF THE TEXT. ONLY FORMAT IT SAFELY."""
+        )
+        return response.content
+    except Exception as e:
+        logger.error(f"Error formatting text: {e}")
+        return ""
 
 # Configure logging
 logging.basicConfig(
@@ -91,34 +109,45 @@ async def upload_document(
 
                 loader = PyPDFLoader(tmp_path)
                 documents = loader.load()
+                
+                logger.info("Formatting text...")
+                context += "# Document Summary:\n"
+                for i, document in enumerate(documents):
+                    logger.info("Formatting text %d of %d", i, len(documents))
+                    page_text = document.page_content
+                    formatted_text = await format_text(page_text)
+                    context += formatted_text
 
-                text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-                splits = text_splitter.split_documents(documents)
+                # text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+                # splits = text_splitter.split_documents(documents)
 
-                logger.info(f"Number of text chunks created: {len(splits)}")
+                # logger.info(f"Number of text chunks created: {len(splits)}")
 
-                # Concurrently invoke the summary chain on each split
-                summaries = []
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future_to_split = {executor.submit(summary_chain.invoke, split): split for split in splits}
+                # # Concurrently invoke the summary chain on each split
+                # summaries = []
+                # with concurrent.futures.ThreadPoolExecutor() as executor:
+                #     logger.info("Summarizing splits concurrently")
+                #     future_to_split = {executor.submit(summary_chain.invoke, split): split for split in splits}
                     
-                    for future in concurrent.futures.as_completed(future_to_split):
-                        split = future_to_split[future]
-                        try:
-                            summary = future.result()
-                            summaries.append(summary)
-                            logger.debug("Summary for split %s: %s", split, summary)
-                        except Exception as exc:
-                            logger.error("Error summarizing split %s: %s", split, exc)
+                #     for future in concurrent.futures.as_completed(future_to_split):
+                #         split = future_to_split[future]
+                #         try:
+                #             summary = future.result()
+                #             summaries.append(summary)
+                #             logger.debug("Summary for split %s: %s", split, summary)
+                #         except Exception as exc:
+                #             logger.error("Error summarizing split %s: %s", split, exc)
+
 
                 # Optionally, you can further reduce the summaries if needed
-                final_summary = "\n".join(summaries)
+                # final_summary = "\n".join(summaries)
 
-                logger.info("Summary generated for the PDF.")
+                # logger.info("Summary generated for the PDF.")
 
-                context += f"# Document Summary:\n{final_summary}"
+                # context += f"# Document Summary:\n{final_summary}"
 
                 os.unlink(tmp_path)
+                logger.info("Context: %s", context)
                 logger.info("Temporary PDF file deleted.")
 
             elif file.content_type.startswith('image/'):
@@ -137,24 +166,6 @@ async def upload_document(
 
     return JSONResponse(content={"context": context}, status_code=200)
 
-    # # Create a conversation with Tavus AI using the context
-    # try:
-    #     logger.info("Creating conversation with Tavus AI.")
-    #     conversation_url = tavus_client.create_conversation(
-    #         context=context,
-    #         callback_url="https://yourwebsite.com/webhook"
-    #     )
-    #     # daily_client = DailyClient()
-    #     # daily_client.join_room(conversation_url)
-    #     # conversation_id = tavus_client.get_conversation_id(conversation_url)
-    #     # answer = "I don't know"
-    #     # new_context = f"Student just answered the question. Here's the answer: {answer}"
-    #     # daily_client.send_message(conversation_id, new_context)
-    #     logger.info("Conversation created successfully: %s", conversation_url)
-    # except Exception as e:
-    #     logger.error("Failed to create conversation with Tavus AI: %s", str(e))
-    #     status_code = getattr(e, 'status_code', 500)  # Default to 500 if no status_code exists
-    #     raise HTTPException(status_code=status_code, detail=str(e))
 
 @app.post("/create_conversation")
 async def create_conversation(request: Request):
@@ -218,22 +229,6 @@ async def record(
         print('Transcription: ', transcription)
         
         # Process with ChatGPT
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
-        # response = client.chat.completions.create(
-        #     model="gpt-4o-mini",
-        #     messages=[
-        #         {"role": "system", "content": """
-        #             Analyze the student's explanation and provide a brief summary focusing on:
-        #             1. What topic/subject they're studying
-        #             2. Their current progress/understanding level
-        #             3. Specific areas where they're struggling
-        #             4. Their confidence level with the material
-        #             Keep the response concise and empathetic.
-        #         """},
-        #         {"role": "user", "content": transcription}
-        #     ]
-        # )
         summary_prompt = PromptTemplate(
             template="""
                 Summarize the student's situation based on the following criteria:
@@ -247,19 +242,10 @@ async def record(
             input_variables=["text"]
         )
         print('Prompt: ', summary_prompt)
-        llm = ChatOpenAI(
-            api_key=os.getenv("OPENAI_API_KEY"),
-            model="gpt-4o-mini", 
-            temperature=0
-        )  # Use ChatOpenAI for chat models
         print('LLM: ', llm)
         response = llm.invoke(summary_prompt.format(text=transcription))
         print('LLM Response:', response)
-        # summary_chain = load_summarize_chain(llm, chain_type="stuff", map_prompt=map_prompt)
-        # print('Summary chain: ', summary_chain)
-        # analysis = summary_chain.invoke({"text": transcription})
-        # print('Analysis: ', analysis)
-        
+
         # Clean up temp file
         os.remove(temp_file_path)
         

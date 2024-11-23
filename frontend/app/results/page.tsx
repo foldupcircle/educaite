@@ -24,17 +24,18 @@ export default function ResultsPage() {
   }, [router])
 
   return (
-    <div className="h-screen w-screen flex">
-      <div className="w-1/2 h-full">
+    <div className="fixed inset-0 flex">
+      <div className="w-1/2 h-screen">
         {conversationUrl && (
           <iframe 
             src={conversationUrl}
-            className="w-full h-full"
+            className="w-full h-full border-0"
             allow="camera; microphone"
+            style={{ aspectRatio: '9/16' }}
           />
         )}
       </div>
-      <div className="w-1/2 h-full">
+      <div className="w-1/2 h-screen">
         <PDFViewer pdfUrl={pdfUrl} />
       </div>
     </div>

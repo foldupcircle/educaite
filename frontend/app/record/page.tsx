@@ -55,7 +55,8 @@ export default function RecordPage() {
         })
         console.log('Transcription and analysis done')
         const userContext = response.data.analysis
-        localStorage.setItem('userContext', userContext)
+        console.log('userContext', userContext)
+        localStorage.setItem('userContext', userContext['content'])
 
         if (response.status !== 200) {
           throw new Error('Failed to upload recording')
@@ -67,6 +68,8 @@ export default function RecordPage() {
 
       const existingContext = localStorage.getItem('context') || '';
       const userContext = localStorage.getItem('userContext') || '';
+      console.log('userContext', userContext)
+      console.log('existingContext', existingContext)
       const updatedContext = `${existingContext}\n\n# Student's Current Situation Context:\n${userContext}`;
       try {
         const conversationResponse = await axios.post('http://localhost:8000/create_conversation', {
