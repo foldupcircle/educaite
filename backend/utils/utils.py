@@ -54,7 +54,7 @@ class AWSClient:
                 unique_filename,
                 ExtraArgs={'ACL': 'private'}
             )
-            file_url = f"s3://{self.bucket_name}/{unique_filename}"
+            file_url = f"s3://{self.bucket_name}/educaite/{unique_filename}"
             return file_url
         except NoCredentialsError:
             print("AWS credentials not available.")
@@ -79,7 +79,7 @@ class AWSClient:
                 Body=text.encode('utf-8'),
                 ACL='private'
             )
-            file_url = f"s3://{self.bucket_name}/{unique_filename}"
+            file_url = f"s3://{self.bucket_name}/educaite/{unique_filename}"
             return file_url
         except NoCredentialsError:
             print("AWS credentials not available.")
