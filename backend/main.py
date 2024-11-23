@@ -90,7 +90,7 @@ async def upload_document(
 
                 context += f"# Document Summary:\n{summary}"
 
-                context += f"# Document Raw Content:\n{documents[0].text}"
+                context += f"# Document Raw Content:\n{documents}"
 
                 os.unlink(tmp_path)
                 logger.info("Temporary PDF file deleted.")
