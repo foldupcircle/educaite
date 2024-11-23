@@ -3,6 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import axios from 'axios'
+
+const isDev = process.env.NODE_ENV !== 'production'
+const baseUrl = isDev ? process.env.NEXT_PUBLIC_DEV_URL : process.env.NEXT_PUBLIC_PROD_URL
+
 export default function Home() {
   const [name, setName] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
@@ -25,7 +29,7 @@ export default function Home() {
         formData.append('name', name)
         formData.append('file', pdf)
 
-        const response = await axios.post('http://localhost:8000/upload', formData, {
+        const response = await axios.post(`${baseUrl}/upload`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }

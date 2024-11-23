@@ -33,8 +33,6 @@ llm = ChatOpenAI(
 )
 
 summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
-# summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
-
 
 async def format_text(text: str) -> str:
     try:
@@ -63,7 +61,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Replace with your frontend URL
+    allow_origins=["http://localhost:3000", "https://app.explainstein.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -243,4 +241,4 @@ async def record(
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI application.")
-    uvicorn.run(app, host="127.0.0.1", port=8090)
+    uvicorn.run(app, host="localhost", port=8000)

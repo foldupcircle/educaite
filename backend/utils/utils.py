@@ -9,6 +9,8 @@ import boto3
 import requests
 from botocore.exceptions import NoCredentialsError, ClientError
 from dotenv import load_dotenv
+
+# Best use of supabase?
 from supabase import create_client, Client
 
 # Configure logging
