@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import axios from 'axios'
 
 const isDev = process.env.NODE_ENV !== 'production'
-const baseUrl = isDev ? process.env.NEXT_PUBLIC_DEV_URL : process.env.NEXT_PUBLIC_PROD_URL
+
+// const baseUrl = isDev ? process.env.NEXT_PUBLIC_DEV_URL : process.env.NEXT_PUBLIC_PROD_URL
+const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
 export default function Home() {
   const [name, setName] = useState('')
