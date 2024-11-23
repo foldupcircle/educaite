@@ -8,7 +8,7 @@ import axios from 'axios'
 
 // const baseUrl = isDev ? process.env.NEXT_PUBLIC_DEV_URL : process.env.NEXT_PUBLIC_PROD_URL
 // const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL
-const baseUrl = "https://educaite-871207387231.us-west1.run.app/"
+const baseUrl = "https://educaite-871207387231.us-west1.run.app"
 
 
 export default function RecordPage() {

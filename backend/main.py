@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://app.explainstein.com/", "https://explainstein.com", "https://educaite-871207387231.us-west1.run.app/"],
+    allow_origins=["http://localhost:3000", "https://app.explainstein.com", "https://explainstein.com", "https://educaite-871207387231.us-west1.run.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,6 +80,11 @@ def get_current_user(request: Request):
 async def read_index(request: Request):
     logger.info("Rendering index page")
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.options("/{full_path:path}")
+async def preflight_handler():
+    return JSONResponse(content={}, status_code=200)
+
 
 @app.post("/upload")
 async def upload_document(
