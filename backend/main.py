@@ -7,6 +7,7 @@ import uvicorn
 from openai import OpenAI
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
 
@@ -22,22 +23,30 @@ map_prompt = PromptTemplate(
     input_variables=["text"]
 )
 
-# Initialize LangChain components with ChatOpenAI
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
-summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
+# # Initialize LangChain components with ChatOpenAI
+# llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
+# summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(name)s %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("app.log")
-    ]
-)
+# # Configure logging
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s %(levelname)s %(name)s %(message)s',
+#     handlers=[
+#         logging.StreamHandler(),
+#         logging.FileHandler("app.log")
+#     ]
+# )
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Replace with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 templates = Jinja2Templates(directory="templates")
 
 # Initialize Tavus client
@@ -169,16 +178,22 @@ async def record(
     description: str = Form(""),
     user_id: str = Depends(get_current_user)
 ):
+    print('Received record request from user: ', user_id)
+    print('Description: ', description)
     # Save the uploaded file temporarily
     temp_file_path = f"temp_{user_id}.webm"
     try:
         with open(temp_file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
+
+        print('File saved to: ', temp_file_path)
         
         # Transcribe the audio using Whisper
         model = whisper.load_model("base")
+        print('Transcribing...')
         result = model.transcribe(temp_file_path)
+        print('Transcribed!')
         transcription = result["text"]
         print('Transcription: ', transcription)
         
@@ -206,6 +221,5 @@ async def record(
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    import uvicorn
     logger.info("Starting FastAPI application.")
     uvicorn.run(app, host="127.0.0.1", port=8000)
