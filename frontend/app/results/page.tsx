@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import PDFViewer from '../../components/PDFViewer'
-import VideoPlayer from '../../components/VideoPlayer'
+import PDFViewer from '@/components/PDFViewer'
+import VideoPlayer from '@/components/VideoPlayer'
 
 export default function ResultsPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
