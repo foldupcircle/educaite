@@ -19,6 +19,13 @@ COPY requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir -r /app/requirements.txt
 RUN pip3 install --upgrade boto3 botocore
 
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    ffmpeg \
+    && apt-get clean
+
+RUN pip3 install python-ffmpeg
+
 # Copy application code
 COPY . /app/
 
