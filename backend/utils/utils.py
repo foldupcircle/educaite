@@ -1,5 +1,4 @@
 # utils/utils.py
-
 import os
 import uuid
 import random
