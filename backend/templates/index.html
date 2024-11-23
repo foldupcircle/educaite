@@ -1,15 +1,21 @@
+<!-- templates/index.html -->
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Upload Document or Enter Text</title>
+    <title>Upload Document</title>
 </head>
 <body>
     <h1>Welcome!</h1>
     <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="file">Upload Document:</label>
-        <input type="file" name="file" id="file"><br><br>
-        <label for="description">Or Enter Text:</label><br>
-        <textarea name="description" id="description" rows="4" cols="50"></textarea><br><br>
+        <!-- User Name Input -->
+        <label for="name">Your Name:</label>
+        <input type="text" name="name" id="name" required><br><br>
+
+        <!-- Optional Document Upload -->
+        <label for="file">Upload Document (optional):</label>
+        <input type="file" name="file" id="file" accept=".pdf,image/*"><br><br>
+
         <button type="submit">Submit</button>
     </form>
 </body>
