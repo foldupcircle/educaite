@@ -12,16 +12,16 @@ from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
 
 from langchain.document_loaders import PyPDFLoader
-from langchain.chains.summarize import load_summarize_chain
-from langchain.chat_models import ChatOpenAI  # Updated import
+from langchain.chains import load_summarize_chain
+from langchain_openai import ChatOpenAI  # Updated import
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.prompts import PromptTemplate
 import concurrent.futures  # Import for concurrency
 
-map_prompt = PromptTemplate(
-    template="Summarize this content:\n\n{text}",
-    input_variables=["text"]
-)
+# map_prompt = PromptTemplate(
+#     template="Summarize this content:\n\n{text}",
+#     input_variables=["text"]
+# )
 
 # # Initialize LangChain components with ChatOpenAI
 # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
@@ -200,20 +200,50 @@ async def record(
         # Process with ChatGPT
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are analyzing a video transcription."},
-                {"role": "user", "content": transcription}
-            ]
+        # response = client.chat.completions.create(
+        #     model="gpt-4o-mini",
+        #     messages=[
+        #         {"role": "system", "content": """
+        #             Analyze the student's explanation and provide a brief summary focusing on:
+        #             1. What topic/subject they're studying
+        #             2. Their current progress/understanding level
+        #             3. Specific areas where they're struggling
+        #             4. Their confidence level with the material
+        #             Keep the response concise and empathetic.
+        #         """},
+        #         {"role": "user", "content": transcription}
+        #     ]
+        # )
+        summary_prompt = PromptTemplate(
+            template="""
+                Summarize the student's situation based on the following criteria:
+                1. What topic/subject they're studying
+                2. Their current progress/understanding level
+                3. Specific areas where they're struggling
+                4. Their confidence level with the material
+                Keep the response concise and empathetic and return in a cohesive paragraph.
+                \n\n{text}
+            """,
+            input_variables=["text"]
         )
-        
-        analysis = response.choices[0].message.content
+        print('Prompt: ', summary_prompt)
+        llm = ChatOpenAI(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini", 
+            temperature=0
+        )  # Use ChatOpenAI for chat models
+        print('LLM: ', llm)
+        response = llm.invoke(summary_prompt.format(text=transcription))
+        print('LLM Response:', response)
+        # summary_chain = load_summarize_chain(llm, chain_type="stuff", map_prompt=map_prompt)
+        # print('Summary chain: ', summary_chain)
+        # analysis = summary_chain.invoke({"text": transcription})
+        # print('Analysis: ', analysis)
         
         # Clean up temp file
         os.remove(temp_file_path)
         
-        return {"transcription": transcription, "analysis": analysis}
+        return {"transcription": transcription, "analysis": response}
         
     except Exception as e:
         if os.path.exists(temp_file_path):
