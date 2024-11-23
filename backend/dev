@@ -1,0 +1,39 @@
+#!/bin/bash
+
+echo "dev: Building and running the Docker container. Recall: Use up.sh for building for production use."
+
+# Load variables from .env file
+export $(grep -v '^#' .env | xargs)
+
+# Print the secret key (for verification) -> Secrets like these should be added in the cloud-run environment
+echo "dev.sh printing: DUMMY_SECRET_KEY:" $DUMMY_SECRET_KEY
+
+# Stop and remove any currently running container with the procureinsight image
+container_id=$(docker ps -q --filter "ancestor=educaite:latest")
+
+if [ -n "$container_id" ]; then
+    echo "Stopping and removing the currently running container with image 'educaite:latest' (ID: $container_id)..."
+    docker stop $container_id
+    docker rm $container_id
+else
+    echo "No running container with image 'educaite:latest' found."
+fi
+
+docker build -t educaite .
+docker run -p 8090:8090 \
+    -e DUMMY_SECRET_KEY=$DUMMY_SECRET_KEY \
+    -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+    -e AWS_ASSUME_ROLE_ARN=$AWS_ASSUME_ROLE_ARN \
+    -e AWS_BUCKET_NAME=$AWS_BUCKET_NAME \
+    -e AWS_REGION=$AWS_REGION \
+    -e TAVUS_API_KEY=$TAVUS_API_KEY \
+    -e REPLICA_ID=$REPLICA_ID \
+    -e PERSONA_ID=$PERSONA_ID \
+    -e SUPABASE_URL=$SUPABASE_URL \
+    -e SUPABASE_KEY=$SUPABASE_KEY \
+    -e SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY \
+    -e OPENAI_API_KEY=$OPENAI_API_KEY \
+    -e ASSEMBLYAI_API_KEY=$ASSEMBLYAI_API_KEY \
+    -e NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
+    educaite

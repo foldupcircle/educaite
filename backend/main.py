@@ -6,7 +6,6 @@ import whisper
 import uvicorn
 import ffmpeg
 from openai import OpenAI
-from io import BytesIO
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,8 +30,9 @@ llm = ChatOpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     model="gpt-4o-mini", 
     temperature=0
-)  # Use ChatOpenAI for chat models
+)
 
+summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
 # summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
 
 
@@ -112,45 +112,29 @@ async def upload_document(
 
                 loader = PyPDFLoader(tmp_path)
                 documents = loader.load()
-                
-                logger.info("Formatting text...")
-                context += "# Document Summary:\n"
-                for i, document in enumerate(documents):
-                    logger.info("Formatting text %d of %d", i, len(documents))
-                    page_text = document.page_content
-                    formatted_text = await format_text(page_text)
-                    context += formatted_text
 
-                # text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-                # splits = text_splitter.split_documents(documents)
+                print("documents", documents)
 
-                # logger.info(f"Number of text chunks created: {len(splits)}")
+                text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+                splits = text_splitter.split_documents(documents)
 
-                # # Concurrently invoke the summary chain on each split
-                # summaries = []
-                # with concurrent.futures.ThreadPoolExecutor() as executor:
-                #     logger.info("Summarizing splits concurrently")
-                #     future_to_split = {executor.submit(summary_chain.invoke, split): split for split in splits}
-                    
-                #     for future in concurrent.futures.as_completed(future_to_split):
-                #         split = future_to_split[future]
-                #         try:
-                #             summary = future.result()
-                #             summaries.append(summary)
-                #             logger.debug("Summary for split %s: %s", split, summary)
-                #         except Exception as exc:
-                #             logger.error("Error summarizing split %s: %s", split, exc)
+                logger.info(f"Number of text chunks created: {len(splits)}")
 
+                # Asynchronously call the summarization chain
+                summary_result = await summary_chain.acall({"input_documents": splits})
 
-                # Optionally, you can further reduce the summaries if needed
-                # final_summary = "\n".join(summaries)
+                # Access the summarized text
+                summary = summary_result['output_text']
 
-                # logger.info("Summary generated for the PDF.")
+                print("summary", summary)
 
-                # context += f"# Document Summary:\n{final_summary}"
+                logger.info("Summary generated for the PDF.")
+
+                context += f"# Document Summary:\n{summary}"
+
+                context += f"# Document Raw Content:\n{documents}"
 
                 os.unlink(tmp_path)
-                logger.info("Context: %s", context)
                 logger.info("Temporary PDF file deleted.")
 
             elif file.content_type.startswith('image/'):
@@ -213,20 +197,11 @@ async def record(
     user_id: str = Depends(get_current_user)
 ):
     print('Received record request from user: ', user_id)
-    print('Description: ', description)
-    # Save the uploaded file temporarily
-    # temp_file_path = f"temp_{user_id}.webm"
     try:
-        # with open(temp_file_path, "wb") as buffer:
-        #     content = await file.read()
-        #     buffer.write(content)
+
         content = await file.read()
         logger.info(f"Content type: {type(content)}, size: {len(content)}")
-        
-        # audio_array = np.frombuffer(content, dtype=np.int16)
-        # audio_array = audio_array.astype(np.float32) / 32768.0
-        # logger.info(' Audio array: ', audio_array)
-        # print('Audio array: ', audio_array)
+
         audio_array, _ = (
             ffmpeg
             .input('pipe:', format='webm')
@@ -235,17 +210,7 @@ async def record(
         )
         
         audio_array = np.frombuffer(audio_array, np.int16).flatten().astype(np.float32) / 32768.0
-        # print('File saved to: ', temp_file_path)
-        
-        # # Transcribe the audio using Whisper
-        # model = whisper.load_model("base")
-        # print('Transcribing...')
-        # result = model.transcribe(temp_file_path)
-        # print('Transcribed!')
-        # transcription = result["text"]
-        # print('Transcription: ', transcription)
         logger.info(f"Audio array shape: {audio_array.shape}, dtype: {audio_array.dtype}")
-
 
         # Transcribe directly from memory
         model = whisper.load_model("base")
@@ -269,9 +234,6 @@ async def record(
         print('LLM: ', llm)
         response = llm.invoke(summary_prompt.format(text=transcription))
         print('LLM Response:', response)
-
-        # Clean up temp file
-        # os.remove(temp_file_path)
         
         return {"transcription": transcription, "analysis": response}
         
@@ -281,4 +243,4 @@ async def record(
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI application.")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8090)
