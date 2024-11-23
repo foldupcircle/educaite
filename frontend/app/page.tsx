@@ -34,6 +34,8 @@ export default function Home() {
           throw new Error('Failed to upload')
         }
 
+        const data = await response.json()
+        localStorage.setItem('conversation_url', data.conversation_url)
         router.push('/record')
       } catch (error) {
         console.error('Error uploading:', error)

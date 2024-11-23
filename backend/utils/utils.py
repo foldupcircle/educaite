@@ -116,6 +116,8 @@ class TavusClient:
         Create a conversation with Tavus AI.
         """
         url = f"{self.base_url}/conversations"
+        logger.info(f"self.replica_id: {self.replica_id}")
+        logger.info(f"self.persona_id: {self.persona_id}")
         payload = {
             "replica_id": self.replica_id,
             "persona_id": self.persona_id,
@@ -192,6 +194,12 @@ class TavusClient:
         except Exception as err:
             logger.error("An error occurred while updating context: %s", err)
             raise
+
+    def get_conversation_id(self, conversation_url: str) -> str:
+        """
+        Get the conversation ID from the conversation URL.
+        """
+        return conversation_url.split('/')[-1]
 
 
 class SupabaseClient:

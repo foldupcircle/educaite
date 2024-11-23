@@ -73,6 +73,16 @@ export default function RecordPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md w-96 space-y-4">
         <h1 className="text-2xl font-bold mb-6 text-center">Record Your Explanation</h1>
+        
+        {typeof window !== 'undefined' && localStorage.getItem('conversation_url') && (
+          <iframe 
+            src={localStorage.getItem('conversation_url') || ''} 
+            width="100%" 
+            height="600px"
+            className="mb-4"
+          />
+        )}
+
         <p className="text-center text-gray-600">
           Explain where you are in your homework and what you&apos;re struggling with.
         </p>

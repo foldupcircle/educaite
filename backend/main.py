@@ -6,7 +6,7 @@ import whisper
 import uvicorn
 from openai import OpenAI
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
@@ -142,12 +142,12 @@ async def upload_document(
             context=context,
             callback_url="https://yourwebsite.com/webhook"
         )
-        daily_client = DailyClient()
-        daily_client.join_room(conversation_url)
-        conversation_id = tavus_client.get_conversation_id(conversation_url)
-        answer = "I don't know"
-        new_context = f"Student just answered the question. Here's the answer: {answer}"
-        daily_client.send_message(conversation_id, new_context)
+        # daily_client = DailyClient()
+        # daily_client.join_room(conversation_url)
+        # conversation_id = tavus_client.get_conversation_id(conversation_url)
+        # answer = "I don't know"
+        # new_context = f"Student just answered the question. Here's the answer: {answer}"
+        # daily_client.send_message(conversation_id, new_context)
         logger.info("Conversation created successfully: %s", conversation_url)
     except Exception as e:
         logger.error("Failed to create conversation with Tavus AI: %s", str(e))
@@ -158,17 +158,8 @@ async def upload_document(
         logger.error("Conversation URL retrieval failed.")
         raise HTTPException(status_code=500, detail="Failed to retrieve conversation URL.")
 
-    # Redirect the user to the live conversation page
-    response = RedirectResponse("/live", status_code=302)
-    response.set_cookie(
-        key="conversation_url",
-        value=conversation_url,
-        httponly=True,
-        secure=True,
-        samesite="Lax"
-    )
-    logger.info("Redirecting user to /live page.")
-    return response
+    # Instead of redirecting, return the conversation URL
+    return JSONResponse(content={"conversation_url": conversation_url}, status_code=200)
 
 @app.get("/live", response_class=HTMLResponse)
 async def live(request: Request):
