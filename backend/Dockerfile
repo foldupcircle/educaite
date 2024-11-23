@@ -30,7 +30,7 @@ RUN pip3 install python-ffmpeg
 COPY . /app/
 
 # Expose port
-EXPOSE 8090
+EXPOSE 8000
 
 FROM base AS development
 

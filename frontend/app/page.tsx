@@ -3,6 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import axios from 'axios'
+
+const isDev = process.env.NODE_ENV !== 'production'
+const baseUrl = isDev ? process.env.NEXT_PUBLIC_DEV_URL : process.env.NEXT_PUBLIC_PROD_URL
+
 export default function Home() {
   const [name, setName] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
@@ -25,7 +29,7 @@ export default function Home() {
         formData.append('name', name)
         formData.append('file', pdf)
 
-        const response = await axios.post('http://localhost:8000/upload', formData, {
+        const response = await axios.post(`${baseUrl}/upload`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -38,10 +42,39 @@ export default function Home() {
         const data = response.data
         console.log('data', data)
         localStorage.setItem('context', data.context)
-        router.push('/record')
+        // router.push('/record')
       } catch (error) {
         console.error('Error uploading:', error)
       }
+
+      
+      const existingContext = localStorage.getItem('context') || '';
+      // const userContext = localStorage.getItem('userContext') || '';
+      // console.log('userContext', userContext)
+      console.log('existingContext', existingContext)
+      // const updatedContext = `${existingContext}\n\n# Student's Current Situation Context:\n${userContext}`;
+      try {
+        const conversationResponse = await axios.post(`${baseUrl}/create_conversation`, {
+          context: existingContext
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        const conversationData = conversationResponse.data;
+        localStorage.setItem('conversation_url', conversationData.conversation_url);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          if (error.response?.status === 422) {
+            console.error('Validation error:', error.response.data);
+            // Handle the validation error appropriately
+          }
+        }
+        console.error('Error creating conversation:', error);
+        return;
+      }
+      console.log('Successfully uploaded recording')
+      router.push('/results')
     }
   }
 

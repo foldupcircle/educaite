@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import axios from 'axios'
 
+const isDev = process.env.NODE_ENV !== 'production'
+const baseUrl = isDev ? process.env.NEXT_PUBLIC_DEV_URL : process.env.NEXT_PUBLIC_PROD_URL
+
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
@@ -48,7 +51,7 @@ export default function RecordPage() {
       formData.append('file', recordedBlob, 'recording.webm')
       formData.append('description', '')
       try {
-        const response = await axios.post('http://localhost:8000/record', formData, {
+        const response = await axios.post(`${baseUrl}/record`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -72,7 +75,7 @@ export default function RecordPage() {
       console.log('existingContext', existingContext)
       const updatedContext = `${existingContext}\n\n# Student's Current Situation Context:\n${userContext}`;
       try {
-        const conversationResponse = await axios.post('http://localhost:8000/create_conversation', {
+        const conversationResponse = await axios.post(`${baseUrl}/create_conversation`, {
           context: updatedContext
         }, {
           headers: {
