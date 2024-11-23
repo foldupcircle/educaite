@@ -1,13 +1,18 @@
-<!-- templates/index.html -->
-
 <!DOCTYPE html>
 <html>
 <head>
     <title>Upload Document</title>
+    <script>
+        function disableButton() {
+            const submitButton = document.getElementById('submit-button');
+            submitButton.disabled = true;
+            submitButton.innerText = "Submitting...";
+        }
+    </script>
 </head>
 <body>
     <h1>Welcome!</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
+    <form action="/upload" method="post" enctype="multipart/form-data" onsubmit="disableButton()">
         <!-- User Name Input -->
         <label for="name">Your Name:</label>
         <input type="text" name="name" id="name" required><br><br>
@@ -16,7 +21,7 @@
         <label for="file">Upload Document (optional):</label>
         <input type="file" name="file" id="file" accept=".pdf,image/*"><br><br>
 
-        <button type="submit">Submit</button>
+        <button type="submit" id="submit-button">Submit</button>
     </form>
 </body>
 </html>
