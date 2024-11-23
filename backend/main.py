@@ -9,11 +9,11 @@ from utils.utils import TavusClient, Utils
 
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains.summarize import load_summarize_chain
-from langchain.chat_models import ChatOpenAI  # Updated import
+from langchain.chat_models import ChatOpenAI
 from langchain.text_splitter import CharacterTextSplitter
 
 # Initialize LangChain components with ChatOpenAI
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)  # Use ChatOpenAI for chat models
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
 
 # Configure logging
@@ -77,10 +77,11 @@ async def upload_document(
 
                 logger.info(f"Number of text chunks created: {len(splits)}")
 
+                # Asynchronously call the summarization chain
+                summary_result = await summary_chain.acall({"input_documents": splits})
 
-                summary = summary_chain.invoke(splits) 
-                # summary = await summary_chain.invoke_async(splits)
-
+                # Access the summarized text
+                summary = summary_result['output_text']
 
                 print("summary", summary)
 
@@ -88,7 +89,6 @@ async def upload_document(
 
                 context += f"# Document Summary:\n{summary}"
                 logger.info(f"Context: {context}")
-
 
                 os.unlink(tmp_path)
                 logger.info("Temporary PDF file deleted.")
