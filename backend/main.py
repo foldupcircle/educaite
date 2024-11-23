@@ -186,7 +186,6 @@ async def live(request: Request):
     logger.info("Rendering live conversation page.")
     return templates.TemplateResponse("live.html", {"request": request, "conversation_url": conversation_url})
 
-
 # @app.post("/record")
 # async def record(
 #     request: Request,
