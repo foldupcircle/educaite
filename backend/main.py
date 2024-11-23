@@ -2,9 +2,9 @@
 import os
 import logging
 import tempfile
-import whisper
+#import whisper
 import uvicorn
-import ffmpeg
+# import ffmpeg
 from openai import OpenAI
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -187,57 +187,57 @@ async def live(request: Request):
     return templates.TemplateResponse("live.html", {"request": request, "conversation_url": conversation_url})
 
 
-@app.post("/record")
-async def record(
-    request: Request,
-    file: UploadFile = File(...),
-    description: str = Form(""),
-    user_id: str = Depends(get_current_user)
-):
-    print('Received record request from user: ', user_id)
-    try:
+# @app.post("/record")
+# async def record(
+#     request: Request,
+#     file: UploadFile = File(...),
+#     description: str = Form(""),
+#     user_id: str = Depends(get_current_user)
+# ):
+#     print('Received record request from user: ', user_id)
+#     try:
 
-        content = await file.read()
-        logger.info(f"Content type: {type(content)}, size: {len(content)}")
+#         content = await file.read()
+#         logger.info(f"Content type: {type(content)}, size: {len(content)}")
 
-        audio_array, _ = (
-            ffmpeg
-            .input('pipe:', format='webm')
-            .output('pipe:', format='wav', acodec='pcm_s16le', ac=1, ar=16000)
-            .run(input=content, capture_stdout=True, capture_stderr=True)
-        )
+#         audio_array, _ = (
+#             ffmpeg
+#             .input('pipe:', format='webm')
+#             .output('pipe:', format='wav', acodec='pcm_s16le', ac=1, ar=16000)
+#             .run(input=content, capture_stdout=True, capture_stderr=True)
+#         )
         
-        audio_array = np.frombuffer(audio_array, np.int16).flatten().astype(np.float32) / 32768.0
-        logger.info(f"Audio array shape: {audio_array.shape}, dtype: {audio_array.dtype}")
+#         audio_array = np.frombuffer(audio_array, np.int16).flatten().astype(np.float32) / 32768.0
+#         logger.info(f"Audio array shape: {audio_array.shape}, dtype: {audio_array.dtype}")
 
-        # Transcribe directly from memory
-        model = whisper.load_model("base")
-        result = model.transcribe(audio_array)
-        transcription = result["text"]
+#         # Transcribe directly from memory
+#         model = whisper.load_model("base")
+#         result = model.transcribe(audio_array)
+#         transcription = result["text"]
         
-        # Process with ChatGPT
-        summary_prompt = PromptTemplate(
-            template="""
-                Summarize the student's situation based on the following criteria:
-                1. What topic/subject they're studying
-                2. Their current progress/understanding level
-                3. Specific areas where they're struggling
-                4. Their confidence level with the material
-                Keep the response concise and empathetic and return in a cohesive paragraph.
-                \n\n{text}
-            """,
-            input_variables=["text"]
-        )
-        print('Prompt: ', summary_prompt)
-        print('LLM: ', llm)
-        response = llm.invoke(summary_prompt.format(text=transcription))
-        print('LLM Response:', response)
+#         # Process with ChatGPT
+#         summary_prompt = PromptTemplate(
+#             template="""
+#                 Summarize the student's situation based on the following criteria:
+#                 1. What topic/subject they're studying
+#                 2. Their current progress/understanding level
+#                 3. Specific areas where they're struggling
+#                 4. Their confidence level with the material
+#                 Keep the response concise and empathetic and return in a cohesive paragraph.
+#                 \n\n{text}
+#             """,
+#             input_variables=["text"]
+#         )
+#         print('Prompt: ', summary_prompt)
+#         print('LLM: ', llm)
+#         response = llm.invoke(summary_prompt.format(text=transcription))
+#         print('LLM Response:', response)
         
-        return {"transcription": transcription, "analysis": response}
+#         return {"transcription": transcription, "analysis": response}
         
-    except Exception as e:
-        logger.error(f"Error in /record: {str(e)}", exc_info=True)  # Add full error traceback
-        raise HTTPException(status_code=500, detail=str(e))
+#     except Exception as e:
+#         logger.error(f"Error in /record: {str(e)}", exc_info=True)  # Add full error traceback
+#         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI application.")
