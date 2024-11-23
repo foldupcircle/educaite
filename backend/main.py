@@ -12,6 +12,8 @@ from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI  # Updated import
 from langchain.text_splitter import CharacterTextSplitter
 
+import concurrent.futures  # Import for concurrency
+
 # Initialize LangChain components with ChatOpenAI
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)  # Use ChatOpenAI for chat models
 summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
@@ -77,16 +79,26 @@ async def upload_document(
 
                 logger.info(f"Number of text chunks created: {len(splits)}")
 
+                # Concurrently invoke the summary chain on each split
+                summaries = []
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future_to_split = {executor.submit(summary_chain.invoke, split): split for split in splits}
+                    
+                    for future in concurrent.futures.as_completed(future_to_split):
+                        split = future_to_split[future]
+                        try:
+                            summary = future.result()
+                            summaries.append(summary)
+                            logger.debug("Summary for split %s: %s", split, summary)
+                        except Exception as exc:
+                            logger.error("Error summarizing split %s: %s", split, exc)
 
-                #summary = summary_chain.invoke(splits) 
-                summary = await summary_chain.invoke_async(splits)
-
-
-                print("summary", summary)
+                # Optionally, you can further reduce the summaries if needed
+                final_summary = "\n".join(summaries)
 
                 logger.info("Summary generated for the PDF.")
 
-                context += f"# Document Summary:\n{summary}"
+                context += f"# Document Summary:\n{final_summary}"
 
                 os.unlink(tmp_path)
                 logger.info("Temporary PDF file deleted.")
