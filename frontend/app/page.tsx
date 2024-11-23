@@ -42,10 +42,39 @@ export default function Home() {
         const data = response.data
         console.log('data', data)
         localStorage.setItem('context', data.context)
-        router.push('/record')
+        // router.push('/record')
       } catch (error) {
         console.error('Error uploading:', error)
       }
+
+      
+      const existingContext = localStorage.getItem('context') || '';
+      // const userContext = localStorage.getItem('userContext') || '';
+      // console.log('userContext', userContext)
+      console.log('existingContext', existingContext)
+      // const updatedContext = `${existingContext}\n\n# Student's Current Situation Context:\n${userContext}`;
+      try {
+        const conversationResponse = await axios.post(`${baseUrl}/create_conversation`, {
+          context: existingContext
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        const conversationData = conversationResponse.data;
+        localStorage.setItem('conversation_url', conversationData.conversation_url);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          if (error.response?.status === 422) {
+            console.error('Validation error:', error.response.data);
+            // Handle the validation error appropriately
+          }
+        }
+        console.error('Error creating conversation:', error);
+        return;
+      }
+      console.log('Successfully uploaded recording')
+      router.push('/results')
     }
   }
 
