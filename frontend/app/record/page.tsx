@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import axios from 'axios'
 
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false)
@@ -48,17 +49,22 @@ export default function RecordPage() {
       formData.append('description', '')
 
       try {
-        const response = await fetch('http://localhost:8000/record', {
-          method: 'POST',
-          body: formData,
+        const response = await axios.post('http://localhost:8000/record', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
         })
-        if (!response.ok) {
+        console.log('Transcription:', response.data['transcription'])
+        console.log('Analysis:', response.data['analysis'])
+        
+        if (response.status !== 200) {
           throw new Error('Failed to upload recording')
         }
       } catch (error) {
         console.error('Error uploading recording:', error)
         return
       }
+      console.log('Successfully uploaded recording')
       router.push('/results')
     }
   }
