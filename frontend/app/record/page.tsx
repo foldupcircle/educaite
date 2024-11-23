@@ -48,7 +48,8 @@ export default function RecordPage() {
       formData.append('file', recordedBlob, 'recording.webm')
       formData.append('description', '')
       try {
-        const response = await axios.post('http://localhost:8000/record', formData, {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+        const response = await axios.post(`${backendUrl}/record`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -66,30 +67,30 @@ export default function RecordPage() {
         return
       }
 
-      const existingContext = localStorage.getItem('context') || '';
-      const userContext = localStorage.getItem('userContext') || '';
+      const existingContext = localStorage.getItem('context') || ''
+      const userContext = localStorage.getItem('userContext') || ''
       console.log('userContext', userContext)
       console.log('existingContext', existingContext)
-      const updatedContext = `${existingContext}\n\n# Student's Current Situation Context:\n${userContext}`;
+      const updatedContext = `${existingContext}\n\n# Student's Current Situation Context:\n${userContext}`
       try {
-        const conversationResponse = await axios.post('http://localhost:8000/create_conversation', {
+        const conversationResponse = await axios.post(`${backendUrl}/create_conversation`, {
           context: updatedContext
         }, {
           headers: {
             'Content-Type': 'application/json'
           }
-        });
-        const conversationData = conversationResponse.data;
-        localStorage.setItem('conversation_url', conversationData.conversation_url);
+        })
+        const conversationData = conversationResponse.data
+        localStorage.setItem('conversation_url', conversationData.conversation_url)
       } catch (error) {
         if (axios.isAxiosError(error)) {
           if (error.response?.status === 422) {
-            console.error('Validation error:', error.response.data);
+            console.error('Validation error:', error.response.data)
             // Handle the validation error appropriately
           }
         }
-        console.error('Error creating conversation:', error);
-        return;
+        console.error('Error creating conversation:', error)
+        return
       }
       console.log('Successfully uploaded recording')
       router.push('/results')
@@ -142,4 +143,3 @@ export default function RecordPage() {
     </div>
   )
 }
-
