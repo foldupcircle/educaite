@@ -16,7 +16,6 @@ from langchain.text_splitter import CharacterTextSplitter
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(name)s %(message)s',
@@ -72,6 +71,8 @@ async def upload_document(
                 loader = PyPDFLoader(tmp_path)
                 documents = loader.load()
 
+                print("documents", documents)
+
                 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
                 splits = text_splitter.split_documents(documents)
 
@@ -88,7 +89,8 @@ async def upload_document(
                 logger.info("Summary generated for the PDF.")
 
                 context += f"# Document Summary:\n{summary}"
-                logger.info(f"Context: {context}")
+
+                context += f"# Document Raw Content:\n{documents[0].text}"
 
                 os.unlink(tmp_path)
                 logger.info("Temporary PDF file deleted.")
@@ -110,6 +112,7 @@ async def upload_document(
     # Create a conversation with Tavus AI using the context
     try:
         logger.info("Creating conversation with Tavus AI.")
+        logger.info("Context for conversation: %s", context)
         conversation_url = tavus_client.create_conversation(
             context=context,
             callback_url="https://yourwebsite.com/webhook"
