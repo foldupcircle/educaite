@@ -9,32 +9,32 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
-
-# from langchain.document_loaders import PyPDFLoader
-# from langchain.chains import load_summarize_chain
-# from langchain_openai import ChatOpenAI  # Updated import
-# from langchain.text_splitter import CharacterTextSplitter
-# from langchain.prompts import PromptTemplate
+#from openai import OpenAI
+from langchain.document_loaders import PyPDFLoader
+from langchain.chains import load_summarize_chain
+from langchain_openai import ChatOpenAI  # Updated import
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.prompts import PromptTemplate
 import concurrent.futures  # Import for concurrency
 
-# map_prompt = PromptTemplate(
-#     template="Summarize this content:\n\n{text}",
-#     input_variables=["text"]
-# )
+map_prompt = PromptTemplate(
+    template="Summarize this content:\n\n{text}",
+    input_variables=["text"]
+)
 
-# # Initialize LangChain components with ChatOpenAI
-# llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
-# summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
+# Initialize LangChain components with ChatOpenAI
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
+summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
 
-# # Configure logging
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format='%(asctime)s %(levelname)s %(name)s %(message)s',
-#     handlers=[
-#         logging.StreamHandler(),
-#         logging.FileHandler("app.log")
-#     ]
-# )
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("app.log")
+    ]
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -80,50 +80,39 @@ async def upload_document(
         logger.info("Processing uploaded file: %s", file.filename)
         try:
             if file.content_type == 'application/pdf':
+                logger.info("File is a PDF. Processing with LangChain.")
 
-                doc = await file.read()
-                doc_content = doc.decode('utf-8')
-                print('Doc content: ', doc_content)
-                # logger.info("File is a PDF. Processing with LangChain.")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(await file.read())
+                    tmp_path = tmp.name
+                logger.info("Temporary PDF saved at: %s", tmp_path)
 
-                # with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                #     tmp.write(await file.read())
-                #     tmp_path = tmp.name
-                # logger.info("Temporary PDF saved at: %s", tmp_path)
+                loader = PyPDFLoader(tmp_path)
+                documents = loader.load()
 
-                # loader = PyPDFLoader(tmp_path)
-                # documents = loader.load()
+                print("documents", documents)
 
-                # text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-                # splits = text_splitter.split_documents(documents)
+                text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+                splits = text_splitter.split_documents(documents)
 
-                # logger.info(f"Number of text chunks created: {len(splits)}")
+                logger.info(f"Number of text chunks created: {len(splits)}")
 
-                # # Concurrently invoke the summary chain on each split
-                # summaries = []
-                # with concurrent.futures.ThreadPoolExecutor() as executor:
-                #     future_to_split = {executor.submit(summary_chain.invoke, split): split for split in splits}
-                    
-                #     for future in concurrent.futures.as_completed(future_to_split):
-                #         split = future_to_split[future]
-                #         try:
-                #             summary = future.result()
-                #             summaries.append(summary)
-                #             logger.debug("Summary for split %s: %s", split, summary)
-                #         except Exception as exc:
-                #             logger.error("Error summarizing split %s: %s", split, exc)
+                # Asynchronously call the summarization chain
+                summary_result = await summary_chain.acall({"input_documents": splits})
 
-                # # Optionally, you can further reduce the summaries if needed
-                # final_summary = "\n".join(summaries)
+                # Access the summarized text
+                summary = summary_result['output_text']
 
-                # logger.info("Summary generated for the PDF.")
+                print("summary", summary)
 
+                logger.info("Summary generated for the PDF.")
 
-                # os.unlink(tmp_path)
-                # logger.info("Temporary PDF file deleted.")
+                context += f"# Document Summary:\n{summary}"
 
+                context += f"# Document Raw Content:\n{documents}"
 
-                context += f"### Document Raw Data:\n{doc_content}"
+                os.unlink(tmp_path)
+                logger.info("Temporary PDF file deleted.")
 
             elif file.content_type.startswith('image/'):
                 logger.info("Uploaded file is an image. No processing applied.")
@@ -142,6 +131,7 @@ async def upload_document(
     # Create a conversation with Tavus AI using the context
     try:
         logger.info("Creating conversation with Tavus AI.")
+        print('context', context)
         conversation_url = tavus_client.create_conversation(
             context=context,
             callback_url="https://yourwebsite.com/webhook"
