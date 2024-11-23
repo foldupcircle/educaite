@@ -2,10 +2,13 @@
 import os
 import logging
 import tempfile
+import whisper
+import uvicorn
+from openai import OpenAI
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from utils.utils import TavusClient, Utils
+from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
 
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains.summarize import load_summarize_chain
@@ -153,6 +156,49 @@ async def live(request: Request):
         return RedirectResponse("/", status_code=302)
     logger.info("Rendering live conversation page.")
     return templates.TemplateResponse("live.html", {"request": request, "conversation_url": conversation_url})
+
+@app.post("/record")
+async def record(
+    request: Request,
+    file: UploadFile = File(...),
+    description: str = Form(""),
+    user_id: str = Depends(get_current_user)
+):
+    # Save the uploaded file temporarily
+    temp_file_path = f"temp_{user_id}.webm"
+    try:
+        with open(temp_file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # Transcribe the audio using Whisper
+        model = whisper.load_model("base")
+        result = model.transcribe(temp_file_path)
+        transcription = result["text"]
+        print('Transcription: ', transcription)
+        
+        # Process with ChatGPT
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are analyzing a video transcription."},
+                {"role": "user", "content": transcription}
+            ]
+        )
+        
+        analysis = response.choices[0].message.content
+        
+        # Clean up temp file
+        os.remove(temp_file_path)
+        
+        return {"transcription": transcription, "analysis": analysis}
+        
+    except Exception as e:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

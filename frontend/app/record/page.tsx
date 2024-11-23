@@ -40,9 +40,25 @@ export default function RecordPage() {
     }
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (recordedBlob) {
       localStorage.setItem('recordedVideoUrl', URL.createObjectURL(recordedBlob))
+      const formData = new FormData()
+      formData.append('file', recordedBlob, 'recording.webm')
+      formData.append('description', '')
+
+      try {
+        const response = await fetch('http://localhost:8000/record', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!response.ok) {
+          throw new Error('Failed to upload recording')
+        }
+      } catch (error) {
+        console.error('Error uploading recording:', error)
+        return
+      }
       router.push('/results')
     }
   }
