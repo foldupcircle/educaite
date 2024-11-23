@@ -14,4 +14,4 @@ pypdf
 supabase
 Jinja2
 python-multipart
-
+daily-python
