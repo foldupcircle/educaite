@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Lean PDF Text Annotation Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ccc;
+            padding: 10px;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #pdfContainer {
+            margin-top: 60px;
+            width: 50vw;
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        .pdf-page {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .pdf-canvas {
+            border: 1px solid black;
+            cursor: crosshair;
+        }
+
+        .annotation {
+            position: absolute;
+            color: black;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            cursor: text;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 2px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #zoomControls {
+            margin: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">
+        <h1>Lean PDF Text Annotation Tool</h1>
+        <div id="zoomControls">
+            <button onclick="zoomIn()">Zoom In</button>
+            <button onclick="zoomOut()">Zoom Out</button>
+            <button id="downloadPdf">Download Edited PDF</button>
+        </div>
+    </div>
+    <div id="pdfContainer"></div>
+    <script>
+        const url = 'mid23.pdf';
+        const pdfContainer = document.getElementById('pdfContainer');
+        let pdfDoc = null;
+        let pdfBytes = null;
+        let annotationData = {};
+        let scale = 1.5; // Initial scale
+
+        // Load and render the PDF
+        async function loadPdf(url) {
+            pdfDoc = await pdfjsLib.getDocument(url).promise;
+            pdfBytes = await fetch(url).then(res => res.arrayBuffer());
+            renderAllPages();
+        }
+
+        async function renderAllPages() {
+            pdfContainer.innerHTML = ''; // Clear previous pages
+            const numPages = pdfDoc.numPages;
+
+            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                const page = await pdfDoc.getPage(pageNum);
+                renderPage(page, pageNum);
+            }
+        }
+
+        // Render a single page
+        async function renderPage(page, pageNum) {
+            const viewport = page.getViewport({ scale });
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'pdf-page';
+            pageContainer.style.width = `${viewport.width}px`;
+            pageContainer.style.height = `${viewport.height}px`;
+            pdfContainer.appendChild(pageContainer);
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'pdf-canvas';
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            pageContainer.appendChild(canvas);
+
+            const context = canvas.getContext('2d');
+            await page.render({ canvasContext: context, viewport: viewport });
+
+            pageContainer.addEventListener('click', (event) => {
+                const rect = pageContainer.getBoundingClientRect();
+                const x = (event.clientX - rect.left) / scale;
+                const y = (event.clientY - rect.top) / scale;
+
+                createTextAnnotation(pageContainer, x * scale, y * scale, pageNum);
+            });
+
+            if (!annotationData[pageNum]) {
+                annotationData[pageNum] = [];
+            }
+
+            // Render existing annotations
+            annotationData[pageNum].forEach(({ text, x, y, fontSize }) => {
+                createTextAnnotation(pageContainer, x * scale, y * scale, pageNum, text, fontSize);
+            });
+        }
+
+        // Create a text annotation at specified coordinates
+        function createTextAnnotation(pageContainer, x, y, pageNum, defaultText = 'Click to edit', fontSize = 16) {
+            const annotation = document.createElement('div');
+            annotation.className = 'annotation';
+            annotation.contentEditable = true;
+            annotation.style.left = `${x}px`;
+            annotation.style.top = `${y}px`;
+            annotation.style.fontSize = `${fontSize}px`;
+            annotation.innerText = defaultText;
+            pageContainer.appendChild(annotation);
+
+            annotation.focus();
+            const range = document.createRange();
+            range.selectNodeContents(annotation);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+
+            annotation.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    annotation.blur();
+                }
+            });
+
+            annotation.addEventListener('blur', () => {
+                // Save annotation details to annotationData
+                const index = annotationData[pageNum].findIndex(ann => ann.element === annotation);
+                const adjustedX = parseFloat(annotation.style.left) / scale;
+                const adjustedY = parseFloat(annotation.style.top) / scale;
+                if (index !== -1) {
+                    annotationData[pageNum][index] = {
+                        element: annotation,
+                        text: annotation.innerText,
+                        x: adjustedX,
+                        y: adjustedY,
+                        fontSize: fontSize
+                    };
+                } else {
+                    annotationData[pageNum].push({
+                        element: annotation,
+                        text: annotation.innerText,
+                        x: adjustedX,
+                        y: adjustedY,
+                        fontSize: fontSize
+                    });
+                }
+            });
+        }
+
+        // Download the edited PDF
+        document.getElementById('downloadPdf').addEventListener('click', async () => {
+            const pdfDocToEdit = await PDFLib.PDFDocument.load(pdfBytes);
+            const pages = pdfDocToEdit.getPages();
+            const helveticaFont = await pdfDocToEdit.embedFont(PDFLib.StandardFonts.Helvetica);
+
+            // Apply annotations to each page
+            for (const pageNumber in annotationData) {
+                const pageIndex = parseInt(pageNumber) - 1;
+                const page = pages[pageIndex];
+
+                annotationData[pageNumber].forEach(({ text, x, y, fontSize }) => {
+                    page.drawText(text, {
+                        x,
+                        y: page.getHeight() - y - fontSize,
+                        size: fontSize,
+                        color: PDFLib.rgb(0, 0, 0),
+                        font: helveticaFont
+                    });
+                });
+            }
+
+            // Save and download the edited PDF
+            const pdfBytesEdited = await pdfDocToEdit.save();
+            const blob = new Blob([pdfBytesEdited], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'edited_mid23.pdf';
+            link.click();
+        });
+
+        // Zoom in function
+        function zoomIn() {
+            scale += 0.25;
+            renderAllPages();
+        }
+
+        // Zoom out function
+        function zoomOut() {
+            scale = Math.max(0.5, scale - 0.25);
+            renderAllPages();
+        }
+
+        // Load the initial PDF
+        loadPdf(url);
+    </script>
+</body>
+
+</html>
