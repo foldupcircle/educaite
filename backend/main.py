@@ -78,8 +78,8 @@ async def upload_document(
                 logger.info(f"Number of text chunks created: {len(splits)}")
 
 
-                #summary = summary_chain.invoke(splits) 
-                summary = await summary_chain.invoke_async(splits)
+                summary = summary_chain.invoke(splits) 
+                # summary = await summary_chain.invoke_async(splits)
 
 
                 print("summary", summary)
@@ -87,6 +87,8 @@ async def upload_document(
                 logger.info("Summary generated for the PDF.")
 
                 context += f"# Document Summary:\n{summary}"
+                logger.info(f"Context: {context}")
+
 
                 os.unlink(tmp_path)
                 logger.info("Temporary PDF file deleted.")
