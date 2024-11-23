@@ -47,22 +47,46 @@ export default function RecordPage() {
       const formData = new FormData()
       formData.append('file', recordedBlob, 'recording.webm')
       formData.append('description', '')
-
       try {
         const response = await axios.post('http://localhost:8000/record', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         })
-        console.log('Transcription:', response.data['transcription'])
-        console.log('Analysis:', response.data['analysis'])
-        
+        console.log('Transcription and analysis done')
+        const userContext = response.data.analysis
+        localStorage.setItem('userContext', userContext)
+
         if (response.status !== 200) {
           throw new Error('Failed to upload recording')
         }
       } catch (error) {
         console.error('Error uploading recording:', error)
         return
+      }
+
+      const existingContext = localStorage.getItem('context') || '';
+      const userContext = localStorage.getItem('userContext') || '';
+      const updatedContext = `${existingContext}\n\n# Student's Current Situation Context:\n${userContext}`;
+      try {
+        const conversationResponse = await axios.post('http://localhost:8000/create_conversation', {
+          context: updatedContext
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        const conversationData = conversationResponse.data;
+        localStorage.setItem('conversation_url', conversationData.conversation_url);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          if (error.response?.status === 422) {
+            console.error('Validation error:', error.response.data);
+            // Handle the validation error appropriately
+          }
+        }
+        console.error('Error creating conversation:', error);
+        return;
       }
       console.log('Successfully uploaded recording')
       router.push('/results')

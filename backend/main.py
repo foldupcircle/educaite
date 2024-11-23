@@ -135,31 +135,51 @@ async def upload_document(
     else:
         logger.info("No file uploaded. Proceeding with name only.")
 
-    # Create a conversation with Tavus AI using the context
+    return JSONResponse(content={"context": context}, status_code=200)
+
+    # # Create a conversation with Tavus AI using the context
+    # try:
+    #     logger.info("Creating conversation with Tavus AI.")
+    #     conversation_url = tavus_client.create_conversation(
+    #         context=context,
+    #         callback_url="https://yourwebsite.com/webhook"
+    #     )
+    #     # daily_client = DailyClient()
+    #     # daily_client.join_room(conversation_url)
+    #     # conversation_id = tavus_client.get_conversation_id(conversation_url)
+    #     # answer = "I don't know"
+    #     # new_context = f"Student just answered the question. Here's the answer: {answer}"
+    #     # daily_client.send_message(conversation_id, new_context)
+    #     logger.info("Conversation created successfully: %s", conversation_url)
+    # except Exception as e:
+    #     logger.error("Failed to create conversation with Tavus AI: %s", str(e))
+    #     status_code = getattr(e, 'status_code', 500)  # Default to 500 if no status_code exists
+    #     raise HTTPException(status_code=status_code, detail=str(e))
+
+@app.post("/create_conversation")
+async def create_conversation(request: Request):
     try:
-        logger.info("Creating conversation with Tavus AI.")
+        # Get the JSON body from the request
+        body = await request.json()
+        context = body.get('context')
+        
+        if not context:
+            raise HTTPException(status_code=422, detail="Context is required")
+
+        logger.info("Creating conversation with Tavus AI with context length: %d", len(context))
         conversation_url = tavus_client.create_conversation(
             context=context,
             callback_url="https://yourwebsite.com/webhook"
         )
-        # daily_client = DailyClient()
-        # daily_client.join_room(conversation_url)
-        # conversation_id = tavus_client.get_conversation_id(conversation_url)
-        # answer = "I don't know"
-        # new_context = f"Student just answered the question. Here's the answer: {answer}"
-        # daily_client.send_message(conversation_id, new_context)
-        logger.info("Conversation created successfully: %s", conversation_url)
+        return JSONResponse(content={"conversation_url": conversation_url}, status_code=200)
+    except ValueError as e:
+        # Handle JSON parsing errors
+        logger.error("Invalid JSON in request: %s", str(e))
+        raise HTTPException(status_code=422, detail="Invalid JSON format")
     except Exception as e:
-        logger.error("Failed to create conversation with Tavus AI: %s", str(e))
-        status_code = getattr(e, 'status_code', 500)  # Default to 500 if no status_code exists
-        raise HTTPException(status_code=status_code, detail=str(e))
-
-    if not conversation_url:
-        logger.error("Conversation URL retrieval failed.")
-        raise HTTPException(status_code=500, detail="Failed to retrieve conversation URL.")
-
-    # Instead of redirecting, return the conversation URL
-    return JSONResponse(content={"conversation_url": conversation_url}, status_code=200)
+        logger.error("Error creating conversation: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 @app.get("/live", response_class=HTMLResponse)
 async def live(request: Request):
@@ -169,6 +189,7 @@ async def live(request: Request):
         return RedirectResponse("/", status_code=302)
     logger.info("Rendering live conversation page.")
     return templates.TemplateResponse("live.html", {"request": request, "conversation_url": conversation_url})
+
 
 @app.post("/record")
 async def record(

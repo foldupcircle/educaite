@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-
+import axios from 'axios'
 export default function Home() {
   const [name, setName] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
@@ -25,17 +25,18 @@ export default function Home() {
         formData.append('name', name)
         formData.append('file', pdf)
 
-        const response = await fetch('http://localhost:8000/upload', {
-          method: 'POST',
-          body: formData,
+        const response = await axios.post('http://localhost:8000/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
         })
 
-        if (!response.ok) {
+        if (response.status !== 200) {
           throw new Error('Failed to upload')
         }
 
-        const data = await response.json()
-        localStorage.setItem('conversation_url', data.conversation_url)
+        const data = response.data
+        localStorage.setItem('context', data.context)
         router.push('/record')
       } catch (error) {
         console.error('Error uploading:', error)
