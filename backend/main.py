@@ -2,14 +2,14 @@
 import os
 import logging
 import tempfile
-# import whisper
+import whisper
 import uvicorn
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
-#from openai import OpenAI
+from openai import OpenAI
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains import load_summarize_chain
 from langchain_openai import ChatOpenAI  # Updated import
@@ -166,84 +166,84 @@ async def live(request: Request):
     logger.info("Rendering live conversation page.")
     return templates.TemplateResponse("live.html", {"request": request, "conversation_url": conversation_url})
 
-# @app.post("/record")
-# async def record(
-#     request: Request,
-#     file: UploadFile = File(...),
-#     description: str = Form(""),
-#     user_id: str = Depends(get_current_user)
-# ):
-#     print('Received record request from user: ', user_id)
-#     print('Description: ', description)
-#     # Save the uploaded file temporarily
-#     temp_file_path = f"temp_{user_id}.webm"
-#     try:
-#         with open(temp_file_path, "wb") as buffer:
-#             content = await file.read()
-#             buffer.write(content)
+@app.post("/record")
+async def record(
+    request: Request,
+    file: UploadFile = File(...),
+    description: str = Form(""),
+    user_id: str = Depends(get_current_user)
+):
+    print('Received record request from user: ', user_id)
+    print('Description: ', description)
+    # Save the uploaded file temporarily
+    temp_file_path = f"temp_{user_id}.webm"
+    try:
+        with open(temp_file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
 
-#         print('File saved to: ', temp_file_path)
+        print('File saved to: ', temp_file_path)
         
-#         # Transcribe the audio using Whisper
-#         model = whisper.load_model("base")
-#         print('Transcribing...')
-#         result = model.transcribe(temp_file_path)
-#         print('Transcribed!')
-#         transcription = result["text"]
-#         print('Transcription: ', transcription)
+        # Transcribe the audio using Whisper
+        model = whisper.load_model("base")
+        print('Transcribing...')
+        result = model.transcribe(temp_file_path)
+        print('Transcribed!')
+        transcription = result["text"]
+        print('Transcription: ', transcription)
         
-#         # Process with ChatGPT
-#         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Process with ChatGPT
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
-#         # response = client.chat.completions.create(
-#         #     model="gpt-4o-mini",
-#         #     messages=[
-#         #         {"role": "system", "content": """
-#         #             Analyze the student's explanation and provide a brief summary focusing on:
-#         #             1. What topic/subject they're studying
-#         #             2. Their current progress/understanding level
-#         #             3. Specific areas where they're struggling
-#         #             4. Their confidence level with the material
-#         #             Keep the response concise and empathetic.
-#         #         """},
-#         #         {"role": "user", "content": transcription}
-#         #     ]
-#         # )
-#         summary_prompt = PromptTemplate(
-#             template="""
-#                 Summarize the student's situation based on the following criteria:
-#                 1. What topic/subject they're studying
-#                 2. Their current progress/understanding level
-#                 3. Specific areas where they're struggling
-#                 4. Their confidence level with the material
-#                 Keep the response concise and empathetic and return in a cohesive paragraph.
-#                 \n\n{text}
-#             """,
-#             input_variables=["text"]
-#         )
-#         print('Prompt: ', summary_prompt)
-#         llm = ChatOpenAI(
-#             api_key=os.getenv("OPENAI_API_KEY"),
-#             model="gpt-4o-mini", 
-#             temperature=0
-#         )  # Use ChatOpenAI for chat models
-#         print('LLM: ', llm)
-#         response = llm.invoke(summary_prompt.format(text=transcription))
-#         print('LLM Response:', response)
-#         # summary_chain = load_summarize_chain(llm, chain_type="stuff", map_prompt=map_prompt)
-#         # print('Summary chain: ', summary_chain)
-#         # analysis = summary_chain.invoke({"text": transcription})
-#         # print('Analysis: ', analysis)
+        # response = client.chat.completions.create(
+        #     model="gpt-4o-mini",
+        #     messages=[
+        #         {"role": "system", "content": """
+        #             Analyze the student's explanation and provide a brief summary focusing on:
+        #             1. What topic/subject they're studying
+        #             2. Their current progress/understanding level
+        #             3. Specific areas where they're struggling
+        #             4. Their confidence level with the material
+        #             Keep the response concise and empathetic.
+        #         """},
+        #         {"role": "user", "content": transcription}
+        #     ]
+        # )
+        summary_prompt = PromptTemplate(
+            template="""
+                Summarize the student's situation based on the following criteria:
+                1. What topic/subject they're studying
+                2. Their current progress/understanding level
+                3. Specific areas where they're struggling
+                4. Their confidence level with the material
+                Keep the response concise and empathetic and return in a cohesive paragraph.
+                \n\n{text}
+            """,
+            input_variables=["text"]
+        )
+        print('Prompt: ', summary_prompt)
+        llm = ChatOpenAI(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini", 
+            temperature=0
+        )  # Use ChatOpenAI for chat models
+        print('LLM: ', llm)
+        response = llm.invoke(summary_prompt.format(text=transcription))
+        print('LLM Response:', response)
+        # summary_chain = load_summarize_chain(llm, chain_type="stuff", map_prompt=map_prompt)
+        # print('Summary chain: ', summary_chain)
+        # analysis = summary_chain.invoke({"text": transcription})
+        # print('Analysis: ', analysis)
         
-#         # Clean up temp file
-#         os.remove(temp_file_path)
+        # Clean up temp file
+        os.remove(temp_file_path)
         
-#         return {"transcription": transcription, "analysis": response}
+        return {"transcription": transcription, "analysis": response}
         
-#     except Exception as e:
-#         if os.path.exists(temp_file_path):
-#             os.remove(temp_file_path)
-#         raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI application.")
