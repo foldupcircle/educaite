@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Conversation</title>
+</head>
+<body>
+    <h1>Your Live Conversation</h1>
+    {% if conversation_url %}
+        <iframe src="{{ conversation_url }}" width="100%" height="600px"></iframe>
+    {% else %}
+        <p>No conversation URL provided.</p>
+    {% endif %}
+</body>
+</html>

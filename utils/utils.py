@@ -6,17 +6,16 @@ import random
 import string
 import boto3
 import requests
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, ClientError
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
-# Load environment variables from .env file
 load_dotenv()
-
 
 class Utils:
     @staticmethod
     def get_random_string(length: int) -> str:
-        """Generate a random string of given length."""
+        """Generate a random alphanumeric string of the specified length."""
         return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
@@ -60,6 +59,9 @@ class AWSClient:
         except NoCredentialsError:
             print("AWS credentials not available.")
             raise
+        except ClientError as e:
+            print(f"Failed to upload file to S3: {e}")
+            raise
 
     def save_text_to_s3(self, text: str, user_id: str) -> str:
         """
@@ -81,6 +83,9 @@ class AWSClient:
             return file_url
         except NoCredentialsError:
             print("AWS credentials not available.")
+            raise
+        except ClientError as e:
+            print(f"Failed to save text to S3: {e}")
             raise
 
 
@@ -160,4 +165,102 @@ class TavusClient:
             raise
         except Exception as err:
             print(f"An error occurred while fetching replica: {err}")
+            raise
+
+
+class SupabaseClient:
+    def __init__(self):
+        """Initialize the Supabase client with credentials from environment variables."""
+        self.supabase_url = os.getenv('SUPABASE_URL')
+        self.supabase_key = os.getenv('SUPABASE_KEY')
+
+        if not all([self.supabase_url, self.supabase_key]):
+            raise ValueError("Supabase credentials not set in environment variables.")
+
+        self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
+
+    def create_upload_record(self, user_id: str, file_url: str, description: str = None) -> dict:
+        """
+        Create a record for an uploaded file or text.
+
+        :param user_id: ID of the authenticated user
+        :param file_url: URL of the uploaded file in S3
+        :param description: Optional text description
+        :return: Inserted record
+        """
+        try:
+            data = {
+                "user_id": user_id,
+                "file_url": file_url,
+                "description": description
+            }
+            response = self.supabase.table("uploads").insert(data).execute()
+            if response.status_code == 201:
+                return response.data
+            else:
+                print(f"Failed to create upload record: {response.error}")
+                raise Exception(response.error)
+        except Exception as e:
+            print(f"An error occurred while creating upload record: {e}")
+            raise
+
+    def create_conversation_record(self, user_id: str, conversation_url: str, context: str) -> dict:
+        """
+        Create a record for a conversation.
+
+        :param user_id: ID of the authenticated user
+        :param conversation_url: URL to join the conversation
+        :param context: Context provided to the Tavus AI agent
+        :return: Inserted record
+        """
+        try:
+            data = {
+                "user_id": user_id,
+                "conversation_url": conversation_url,
+                "context": context
+            }
+            response = self.supabase.table("conversations").insert(data).execute()
+            if response.status_code == 201:
+                return response.data
+            else:
+                print(f"Failed to create conversation record: {response.error}")
+                raise Exception(response.error)
+        except Exception as e:
+            print(f"An error occurred while creating conversation record: {e}")
+            raise
+
+    def get_user_uploads(self, user_id: str) -> list:
+        """
+        Retrieve all uploads for a specific user.
+
+        :param user_id: ID of the authenticated user
+        :return: List of upload records
+        """
+        try:
+            response = self.supabase.table("uploads").select("*").eq("user_id", user_id).execute()
+            if response.status_code == 200:
+                return response.data
+            else:
+                print(f"Failed to retrieve uploads: {response.error}")
+                raise Exception(response.error)
+        except Exception as e:
+            print(f"An error occurred while retrieving uploads: {e}")
+            raise
+
+    def get_user_conversations(self, user_id: str) -> list:
+        """
+        Retrieve all conversations for a specific user.
+
+        :param user_id: ID of the authenticated user
+        :return: List of conversation records
+        """
+        try:
+            response = self.supabase.table("conversations").select("*").eq("user_id", user_id).execute()
+            if response.status_code == 200:
+                return response.data
+            else:
+                print(f"Failed to retrieve conversations: {response.error}")
+                raise Exception(response.error)
+        except Exception as e:
+            print(f"An error occurred while retrieving conversations: {e}")
             raise
