@@ -17,7 +17,7 @@ else
     echo "DUMMY_SECRET_KEY=${DUMMY_SECRET_KEY}"
 fi
 
-uvicorn main:app --host 0.0.0.0 --port 8090 --reload
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 echo "Running."
 
 
