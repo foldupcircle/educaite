@@ -4,13 +4,13 @@ import logging
 import tempfile
 import whisper
 import uvicorn
-from openai import OpenAI
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
 from utils.interactions import DailyClient
+from openai import OpenAI
 
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains import load_summarize_chain
@@ -24,7 +24,7 @@ map_prompt = PromptTemplate(
     input_variables=["text"]
 )
 
-# # Initialize LangChain components with ChatOpenAI
+# Initialize LangChain components with ChatOpenAI
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
 summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
 
@@ -92,31 +92,26 @@ async def upload_document(
                 loader = PyPDFLoader(tmp_path)
                 documents = loader.load()
 
+                print("documents", documents)
+
                 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
                 splits = text_splitter.split_documents(documents)
 
                 logger.info(f"Number of text chunks created: {len(splits)}")
 
-                # Concurrently invoke the summary chain on each split
-                summaries = []
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future_to_split = {executor.submit(summary_chain.invoke, split): split for split in splits}
-                    
-                    for future in concurrent.futures.as_completed(future_to_split):
-                        split = future_to_split[future]
-                        try:
-                            summary = future.result()
-                            summaries.append(summary)
-                            logger.debug("Summary for split %s: %s", split, summary)
-                        except Exception as exc:
-                            logger.error("Error summarizing split %s: %s", split, exc)
+                # Asynchronously call the summarization chain
+                summary_result = await summary_chain.acall({"input_documents": splits})
 
-                # Optionally, you can further reduce the summaries if needed
-                final_summary = "\n".join(summaries)
+                # Access the summarized text
+                summary = summary_result['output_text']
+
+                print("summary", summary)
 
                 logger.info("Summary generated for the PDF.")
 
-                context += f"# Document Summary:\n{final_summary}"
+                context += f"# Document Summary:\n{summary}"
+
+                context += f"# Document Raw Content:\n{documents}"
 
                 os.unlink(tmp_path)
                 logger.info("Temporary PDF file deleted.")
@@ -272,4 +267,4 @@ async def record(
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI application.")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8090)
