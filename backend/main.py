@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
+from utils.interactions import DailyClient
 
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains import load_summarize_chain
@@ -18,24 +19,24 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.prompts import PromptTemplate
 import concurrent.futures  # Import for concurrency
 
-# map_prompt = PromptTemplate(
-#     template="Summarize this content:\n\n{text}",
-#     input_variables=["text"]
-# )
+map_prompt = PromptTemplate(
+    template="Summarize this content:\n\n{text}",
+    input_variables=["text"]
+)
 
 # # Initialize LangChain components with ChatOpenAI
-# llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
-# summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
+summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
 
-# # Configure logging
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format='%(asctime)s %(levelname)s %(name)s %(message)s',
-#     handlers=[
-#         logging.StreamHandler(),
-#         logging.FileHandler("app.log")
-#     ]
-# )
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("app.log")
+    ]
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -141,14 +142,21 @@ async def upload_document(
             context=context,
             callback_url="https://yourwebsite.com/webhook"
         )
+        daily_client = DailyClient()
+        daily_client.join_room(conversation_url)
+        conversation_id = tavus_client.get_conversation_id(conversation_url)
+        answer = "I don't know"
+        new_context = f"Student just answered the question. Here's the answer: {answer}"
+        daily_client.send_message(conversation_id, new_context)
         logger.info("Conversation created successfully: %s", conversation_url)
     except Exception as e:
         logger.error("Failed to create conversation with Tavus AI: %s", str(e))
-        return {"error": f"Conversation creation failed: {str(e)}"}
+        status_code = getattr(e, 'status_code', 500)  # Default to 500 if no status_code exists
+        raise HTTPException(status_code=status_code, detail=str(e))
 
     if not conversation_url:
         logger.error("Conversation URL retrieval failed.")
-        return {"error": "Failed to retrieve conversation URL."}
+        raise HTTPException(status_code=500, detail="Failed to retrieve conversation URL.")
 
     # Redirect the user to the live conversation page
     response = RedirectResponse("/live", status_code=302)

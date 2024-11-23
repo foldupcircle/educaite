@@ -169,6 +169,30 @@ class TavusClient:
             logger.error("An error occurred while fetching replica: %s", err)
             raise
 
+    def update_conversation_context(self, conversation_id: str, new_context: str) -> dict:
+        """
+        Update the context of an existing conversation.
+        """
+        url = f"{self.base_url}/conversations/{conversation_id}"
+        payload = {
+            "conversational_context": new_context
+        }
+
+        try:
+            logger.info("Updating conversation context for: %s", conversation_id)
+            response = requests.patch(url, json=payload, headers=self.headers)
+            response.raise_for_status()
+            data = response.json()
+            logger.info("Conversation context updated successfully")
+            return data
+        except requests.exceptions.HTTPError as http_err:
+            logger.error("HTTP error occurred while updating context: %s", http_err)
+            logger.error("Response: %s", response.text)
+            raise
+        except Exception as err:
+            logger.error("An error occurred while updating context: %s", err)
+            raise
+
 
 class SupabaseClient:
     def __init__(self):

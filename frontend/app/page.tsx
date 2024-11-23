@@ -8,16 +8,36 @@ export default function Home() {
   const [pdf, setPdf] = useState<File | null>(null)
   const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (name && pdf) {
+      // Store in localStorage for client-side use
       const reader = new FileReader()
       reader.onload = (e) => {
         localStorage.setItem('userName', name)
         localStorage.setItem('pdfUrl', e.target?.result as string)
-        router.push('/record')
       }
       reader.readAsDataURL(pdf)
+
+      // Send to backend
+      try {
+        const formData = new FormData()
+        formData.append('name', name)
+        formData.append('file', pdf)
+
+        const response = await fetch('http://localhost:8000/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to upload')
+        }
+
+        router.push('/record')
+      } catch (error) {
+        console.error('Error uploading:', error)
+      }
     }
   }
 

@@ -74,7 +74,7 @@ export default function RecordPage() {
       <div className="bg-white p-8 rounded-lg shadow-md w-96 space-y-4">
         <h1 className="text-2xl font-bold mb-6 text-center">Record Your Explanation</h1>
         <p className="text-center text-gray-600">
-          Explain where you are in your homework and what you're struggling with.
+          Explain where you are in your homework and what you&apos;re struggling with.
         </p>
         <div className="flex justify-center">
           {!isRecording ? (
