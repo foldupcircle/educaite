@@ -4,7 +4,9 @@ import logging
 import tempfile
 import whisper
 import uvicorn
+import ffmpeg
 from openai import OpenAI
+from io import BytesIO
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +20,7 @@ from langchain_openai import ChatOpenAI  # Updated import
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.prompts import PromptTemplate
 import concurrent.futures  # Import for concurrency
+import numpy as np
 
 map_prompt = PromptTemplate(
     template="Summarize this content:\n\n{text}",
@@ -212,21 +215,42 @@ async def record(
     print('Received record request from user: ', user_id)
     print('Description: ', description)
     # Save the uploaded file temporarily
-    temp_file_path = f"temp_{user_id}.webm"
+    # temp_file_path = f"temp_{user_id}.webm"
     try:
-        with open(temp_file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-
-        print('File saved to: ', temp_file_path)
+        # with open(temp_file_path, "wb") as buffer:
+        #     content = await file.read()
+        #     buffer.write(content)
+        content = await file.read()
+        logger.info(f"Content type: {type(content)}, size: {len(content)}")
         
-        # Transcribe the audio using Whisper
+        # audio_array = np.frombuffer(content, dtype=np.int16)
+        # audio_array = audio_array.astype(np.float32) / 32768.0
+        # logger.info(' Audio array: ', audio_array)
+        # print('Audio array: ', audio_array)
+        audio_array, _ = (
+            ffmpeg
+            .input('pipe:', format='webm')
+            .output('pipe:', format='wav', acodec='pcm_s16le', ac=1, ar=16000)
+            .run(input=content, capture_stdout=True, capture_stderr=True)
+        )
+        
+        audio_array = np.frombuffer(audio_array, np.int16).flatten().astype(np.float32) / 32768.0
+        # print('File saved to: ', temp_file_path)
+        
+        # # Transcribe the audio using Whisper
+        # model = whisper.load_model("base")
+        # print('Transcribing...')
+        # result = model.transcribe(temp_file_path)
+        # print('Transcribed!')
+        # transcription = result["text"]
+        # print('Transcription: ', transcription)
+        logger.info(f"Audio array shape: {audio_array.shape}, dtype: {audio_array.dtype}")
+
+
+        # Transcribe directly from memory
         model = whisper.load_model("base")
-        print('Transcribing...')
-        result = model.transcribe(temp_file_path)
-        print('Transcribed!')
+        result = model.transcribe(audio_array)
         transcription = result["text"]
-        print('Transcription: ', transcription)
         
         # Process with ChatGPT
         summary_prompt = PromptTemplate(
@@ -247,13 +271,12 @@ async def record(
         print('LLM Response:', response)
 
         # Clean up temp file
-        os.remove(temp_file_path)
+        # os.remove(temp_file_path)
         
         return {"transcription": transcription, "analysis": response}
         
     except Exception as e:
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
+        logger.error(f"Error in /record: {str(e)}", exc_info=True)  # Add full error traceback
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
