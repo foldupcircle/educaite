@@ -28,8 +28,9 @@ llm = ChatOpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     model="gpt-4o-mini", 
     temperature=0
-)  # Use ChatOpenAI for chat models
+)
 
+summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
 # summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
 
 
@@ -109,45 +110,29 @@ async def upload_document(
 
                 loader = PyPDFLoader(tmp_path)
                 documents = loader.load()
-                
-                logger.info("Formatting text...")
-                context += "# Document Summary:\n"
-                for i, document in enumerate(documents):
-                    logger.info("Formatting text %d of %d", i, len(documents))
-                    page_text = document.page_content
-                    formatted_text = await format_text(page_text)
-                    context += formatted_text
 
-                # text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-                # splits = text_splitter.split_documents(documents)
+                print("documents", documents)
 
-                # logger.info(f"Number of text chunks created: {len(splits)}")
+                text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+                splits = text_splitter.split_documents(documents)
 
-                # # Concurrently invoke the summary chain on each split
-                # summaries = []
-                # with concurrent.futures.ThreadPoolExecutor() as executor:
-                #     logger.info("Summarizing splits concurrently")
-                #     future_to_split = {executor.submit(summary_chain.invoke, split): split for split in splits}
-                    
-                #     for future in concurrent.futures.as_completed(future_to_split):
-                #         split = future_to_split[future]
-                #         try:
-                #             summary = future.result()
-                #             summaries.append(summary)
-                #             logger.debug("Summary for split %s: %s", split, summary)
-                #         except Exception as exc:
-                #             logger.error("Error summarizing split %s: %s", split, exc)
+                logger.info(f"Number of text chunks created: {len(splits)}")
 
+                # Asynchronously call the summarization chain
+                summary_result = await summary_chain.acall({"input_documents": splits})
 
-                # Optionally, you can further reduce the summaries if needed
-                # final_summary = "\n".join(summaries)
+                # Access the summarized text
+                summary = summary_result['output_text']
 
-                # logger.info("Summary generated for the PDF.")
+                print("summary", summary)
 
-                # context += f"# Document Summary:\n{final_summary}"
+                logger.info("Summary generated for the PDF.")
+
+                context += f"# Document Summary:\n{summary}"
+
+                context += f"# Document Raw Content:\n{documents}"
 
                 os.unlink(tmp_path)
-                logger.info("Context: %s", context)
                 logger.info("Temporary PDF file deleted.")
 
             elif file.content_type.startswith('image/'):
