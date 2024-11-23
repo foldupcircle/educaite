@@ -5,7 +5,7 @@ import tempfile
 import whisper
 import uvicorn
 from openai import OpenAI
-from fastapi import FastAPI, Request, UploadFile, File, Form, Depends
+from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from utils.utils import TavusClient, Utils, AWSClient, SupabaseClient
@@ -14,12 +14,17 @@ from langchain.document_loaders import PyPDFLoader
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI  # Updated import
 from langchain.text_splitter import CharacterTextSplitter
-
+from langchain.prompts import PromptTemplate
 import concurrent.futures  # Import for concurrency
 
+map_prompt = PromptTemplate(
+    template="Summarize this content:\n\n{text}",
+    input_variables=["text"]
+)
+
 # Initialize LangChain components with ChatOpenAI
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)  # Use ChatOpenAI for chat models
-summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Use ChatOpenAI for chat models
+summary_chain = load_summarize_chain(llm, chain_type="map_reduce", map_prompt=map_prompt)
 
 # Configure logging
 logging.basicConfig(
