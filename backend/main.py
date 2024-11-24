@@ -4,7 +4,7 @@ import logging
 import tempfile
 import whisper
 import uvicorn
-import ffmpeg
+# import ffmpeg
 from openai import OpenAI
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://app.explainstein.com"],
+    allow_origins=["http://localhost:3000", "https://app.explainstein.com", "https://explainstein.com", "https://educaite-871207387231.us-west1.run.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,6 +80,11 @@ def get_current_user(request: Request):
 async def read_index(request: Request):
     logger.info("Rendering index page")
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.options("/{full_path:path}")
+async def preflight_handler():
+    return JSONResponse(content={}, status_code=200)
+
 
 @app.post("/upload")
 async def upload_document(
@@ -186,6 +191,21 @@ async def live(request: Request):
     logger.info("Rendering live conversation page.")
     return templates.TemplateResponse("live.html", {"request": request, "conversation_url": conversation_url})
 
+
+@app.get("/health", response_class=JSONResponse)
+async def health_check():
+    """
+    Health check endpoint to verify if the system is live.
+    Returns a simple JSON response with a status message.
+    """
+    return {"status": "ok", "message": "System is live and running."}
+
+
+@app.get("/test", response_class=JSONResponse)
+async def test_endpoint():
+    return {"message": "CORS working!"}
+
+
 # @app.post("/record")
 # async def record(
 #     request: Request,
@@ -240,6 +260,7 @@ async def live(request: Request):
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI application.")
-    uvicorn.run(app, host="127.0.0.1", port=8090)
+    # uvicorn.run(app, host="127.0.0.1", port=8090)
     # uvicorn.run(app, host="localhost", port=8000)
     
+    uvicorn.run(app, host="0.0.0.0", port=8090)

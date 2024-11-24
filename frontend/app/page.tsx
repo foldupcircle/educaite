@@ -11,6 +11,8 @@ const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 // const baseUrl = 'https://app.explainstein.com'
 // const baseUrl = 'http://localhost:8000'
 
+
+
 export default function Home() {
   const [name, setName] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
