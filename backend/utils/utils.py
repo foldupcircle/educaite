@@ -1,5 +1,4 @@
 # utils/utils.py
-
 import os
 import uuid
 import random
@@ -15,7 +14,6 @@ from supabase import create_client, Client
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
 load_dotenv()
 
 class Utils:
