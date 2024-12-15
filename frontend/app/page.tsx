@@ -7,9 +7,11 @@ import axios from 'axios'
 // const isDev = process.env.NODE_ENV !== 'production'
 
 // const baseUrl = isDev ? process.env.NEXT_PUBLIC_DEV_URL : process.env.NEXT_PUBLIC_PROD_URL
-// const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 // const baseUrl = 'https://app.explainstein.com'
-const baseUrl = 'http://localhost:8000'
+// const baseUrl = 'http://localhost:8000'
+
+
 
 
 export default function Home() {
